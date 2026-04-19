@@ -9,6 +9,12 @@ the security posture of a target **you own or are explicitly authorized to test*
 
 ---
 
+## Screenshots
+
+![Vibe Hacking Agent – Main UI](https://github.com/user-attachments/assets/624ec8f2-cf24-4e18-8fb2-92931fa7bde0)
+
+---
+
 ## Architecture
 
 ```
