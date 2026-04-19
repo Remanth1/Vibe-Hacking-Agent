@@ -15,7 +15,7 @@ from core.evidence import save_run
 from core.models import AssetInventory, RunResult, ScanStatus
 from tools.passive.dns_tools import lookup_dns
 from tools.passive.http_tools import fetch_http_headers
-from tools.passive.tls_tools import inspect_tls
+from tools.passive.tls_tools import inspect_tls, probe_legacy_tls
 from tools.passive.web_tools import fetch_robots_txt, fetch_sitemap, fingerprint_technologies
 
 AGENT_NAME = "ReconAgent"
@@ -102,6 +102,22 @@ def _recon_target(
             AGENT_NAME,
             "TLS inspection complete",
             output=_safe_truncate(str(tls_data), 500),
+        )
+
+        # Legacy-protocol probe is an *active* detection step; run in passive mode
+        # too since it's read-only and purely detects server misconfiguration.
+        result.add_audit(
+            AGENT_NAME,
+            "Legacy TLS protocol probe",
+            command=f"probe_legacy_tls({target})",
+        )
+        legacy = probe_legacy_tls(target)
+        inventory.tls_info[target]["supports_tls10"] = legacy.get("supports_tls10", False)
+        inventory.tls_info[target]["supports_tls11"] = legacy.get("supports_tls11", False)
+        result.add_audit(
+            AGENT_NAME,
+            "Legacy TLS probe complete",
+            output=f"TLS 1.0: {legacy.get('supports_tls10')}, TLS 1.1: {legacy.get('supports_tls11')}",
         )
 
     # ── robots.txt ────────────────────────────────────────────────────────────
