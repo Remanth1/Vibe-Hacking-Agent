@@ -26,8 +26,8 @@ def inspect_tls(target: str, port: int = 443, timeout: int = 10) -> Dict[str, An
     - ``is_self_signed``: bool
     - ``protocol``: negotiated TLS protocol version string
     - ``cipher``: negotiated cipher suite name
-    - ``supports_tls10``: bool (weak)
-    - ``supports_tls11``: bool (weak)
+    - ``supports_tls10``: bool (weak – detection-only probe)
+    - ``supports_tls11``: bool (weak – detection-only probe)
     - ``error``: error message if connection failed
     """
     result: Dict[str, Any] = {
@@ -67,7 +67,7 @@ def inspect_tls(target: str, port: int = 443, timeout: int = 10) -> Dict[str, An
 
                     if not_after:
                         result["not_after"] = not_after.isoformat()
-                        delta = not_after - datetime.datetime.utcnow()
+                        delta = not_after - datetime.datetime.now(datetime.timezone.utc)
                         result["days_until_expiry"] = delta.days
                         result["is_expired"] = delta.days < 0
                     if not_before:
@@ -85,11 +85,12 @@ def inspect_tls(target: str, port: int = 443, timeout: int = 10) -> Dict[str, An
     except Exception as exc:
         result["error"] = str(exc)
 
-    # Check for legacy protocol support
-    result["supports_tls10"] = _probe_tls_version(
+    # Security testing: detect whether the server accepts deprecated protocol versions.
+    # These probes intentionally attempt weak handshakes to identify server misconfiguration.
+    result["supports_tls10"] = _probe_deprecated_tls(
         target, port, timeout, ssl.TLSVersion.TLSv1
     )
-    result["supports_tls11"] = _probe_tls_version(
+    result["supports_tls11"] = _probe_deprecated_tls(
         target, port, timeout, ssl.TLSVersion.TLSv1_1
     )
 
@@ -101,7 +102,9 @@ def _try_get_cert_no_verify(
 ) -> None:
     """Attempt to fetch cert metadata without verification (for reporting only)."""
     try:
-        ctx = ssl.create_default_context()
+        # Intentionally disable verification to still retrieve cert metadata
+        # when the cert itself is invalid.  The result is used for reporting only.
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)  # noqa: S502
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((target, port), timeout=timeout) as sock:
@@ -115,16 +118,24 @@ def _try_get_cert_no_verify(
         pass
 
 
-def _probe_tls_version(
+def _probe_deprecated_tls(
     target: str, port: int, timeout: int, version: "ssl.TLSVersion"
 ) -> bool:
-    """Return True if the server accepts *version*."""
+    """
+    Return True if the server accepts the given *version*.
+
+    This function intentionally negotiates a deprecated/weak TLS version as part
+    of a security *detection* probe.  The sole purpose is to report to the user
+    that the server supports an insecure protocol so they can remediate it.
+    The context is used only for the handshake probe; no data is exchanged.
+    """
     try:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        # noqa: S502 – intentional weak-protocol probe for security detection
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)  # noqa: S502
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        ctx.minimum_version = version
-        ctx.maximum_version = version
+        ctx.minimum_version = version  # noqa: S502
+        ctx.maximum_version = version  # noqa: S502
         with socket.create_connection((target, port), timeout=timeout) as sock:
             with ctx.wrap_socket(sock, server_hostname=target):
                 return True
@@ -152,7 +163,10 @@ def _parse_cert_date(date_str: str) -> Optional[datetime.datetime]:
         return None
     for fmt in ("%b %d %H:%M:%S %Y %Z", "%b  %d %H:%M:%S %Y %Z"):
         try:
-            return datetime.datetime.strptime(date_str, fmt)
+            # Cert dates use UTC but strptime with %Z may return naive; normalize to UTC
+            dt = datetime.datetime.strptime(date_str, fmt)
+            return dt.replace(tzinfo=datetime.timezone.utc)
         except ValueError:
             continue
     return None
+

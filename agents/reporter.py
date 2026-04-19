@@ -9,7 +9,7 @@ Responsibilities:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from jinja2 import Template
@@ -141,7 +141,7 @@ def run(state: Dict[str, Any]) -> Dict[str, Any]:
     result.executive_summary = _build_executive_summary(result, state)
 
     # ── Render Markdown ───────────────────────────────────────────────────────
-    result.completed_at = datetime.utcnow()
+    result.completed_at = datetime.now(timezone.utc)
     result.status = ScanStatus.COMPLETED
     md = _render_markdown(result)
 

@@ -4,11 +4,16 @@ Pydantic data models shared across the entire application.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+def _utcnow() -> datetime:
+    """Return the current UTC time as a timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 # ── Enumerations ─────────────────────────────────────────────────────────────
@@ -57,15 +62,12 @@ class Finding(BaseModel):
     description: str
     evidence: str
     remediation: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-    agent: str = ""
-    tool: str = ""
-    tags: List[str] = Field(default_factory=list)
+    timestamp: datetime = Field(default_factory=_utcnow)
 
 
 class AuditEntry(BaseModel):
     """One entry in the immutable audit trail."""
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utcnow)
     agent: str
     action: str
     command: Optional[str] = None
@@ -92,7 +94,7 @@ class RunResult(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     target: str
     scope: ScopeConfig
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=_utcnow)
     completed_at: Optional[datetime] = None
     status: ScanStatus = ScanStatus.PENDING
     error: Optional[str] = None

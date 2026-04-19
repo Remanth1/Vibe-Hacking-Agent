@@ -8,7 +8,7 @@ Responsibilities:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from core.blocklist import is_blocklisted
@@ -69,7 +69,7 @@ def run(state: Dict[str, Any]) -> Dict[str, Any]:
         msg = "Safety pre-flight failed:\n" + "\n".join(f"  • {i}" for i in issues)
         result.status = ScanStatus.BLOCKED
         result.error = msg
-        result.completed_at = datetime.utcnow()
+        result.completed_at = datetime.now(timezone.utc)
         result.add_audit(AGENT_NAME, "Safety check FAILED", output=msg)
         state["error"] = msg
         state["current_stage"] = "blocked"

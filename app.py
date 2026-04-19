@@ -10,7 +10,7 @@ import json
 import os
 import threading
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -276,7 +276,7 @@ def _start_scan(
     log_lines: List[str] = []
 
     def _progress(stage: str, message: str):
-        log_lines.append(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {stage}: {message}")
+        log_lines.append(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {stage}: {message}")
         st.session_state["progress_log"] = log_lines.copy()
 
     try:

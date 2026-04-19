@@ -59,10 +59,10 @@ def list_runs() -> List[str]:
     """Return a list of all run IDs (directory names inside RUNS_DIR)."""
     if not RUNS_DIR.exists():
         return []
-    return sorted(
-        [d.name for d in RUNS_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")],
-        reverse=True,  # newest first (UUID v4 is random but dirs sort by mtime)
-    )
+    dirs = [d for d in RUNS_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
+    # Sort by directory modification time so the most recent runs appear first
+    dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+    return [d.name for d in dirs]
 
 
 def get_run_report_path(run_id: str, report_filename: str = "report.md") -> Optional[Path]:

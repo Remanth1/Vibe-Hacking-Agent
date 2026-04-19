@@ -9,7 +9,7 @@ Responsibilities:
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from core.blocklist import is_blocklisted
@@ -60,7 +60,7 @@ def run(state: Dict[str, Any]) -> Dict[str, Any]:
 def _block(result: RunResult, state: Dict[str, Any], reason: str) -> None:
     result.status = ScanStatus.BLOCKED
     result.error = reason
-    result.completed_at = datetime.utcnow()
+    result.completed_at = datetime.now(timezone.utc)
     result.add_audit(AGENT_NAME, "Scan blocked", output=reason)
     state["error"] = reason
     state["current_stage"] = "blocked"
